@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:cluster="http://www.mulesoft.org/schema/mule/ee/cluster" xmlns:ws="http://www.mulesoft.org/schema/mule/ws" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:context="http://www.springframework.org/schema/context" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
+http://www.mulesoft.org/schema/mule/ws http://www.mulesoft.org/schema/mule/ws/current/mule-ws.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="${http.port}" doc:name="HTTP Listener Configuration"/>
+    <context:property-placeholder location="flights-${env}.properties"/>
+    <http:request-config name="United_HTTP_Request_Configuration" host="${united.host}" port="80" doc:name="HTTP Request Configuration"/>
+    <http:request-config name="HTTP_Request_Configuration" protocol="HTTPS" host="mocksvc.mulesoft.com" port="443" basePath="/mocks/c1cbd38d-8918-41c3-b73d-da97795033d2" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="https://anypoint.mulesoft.com/exchange/api/v1/organizations/d983af76-b174-419d-b731-f64250fc1911/assets/d983af76-b174-419d-b731-f64250fc1911/american-flights-api/1.0.0/api/root"/>
+    </http:request-config>
+    <ws:consumer-config name="Delta_Web_Service_Consumer" wsdlLocation="http://mu.mulesoft-training.com/essentials/delta?wsdl" service="TicketServiceService" port="TicketServicePort" serviceAddress="http://mu.mulesoft-training.com/essentials/delta" doc:name="Web Service Consumer"/>
+    <configuration defaultExceptionStrategy-ref="implementationChoice_Exception_Strategy" doc:name="Configuration">
+        <http:config useTransportForUris="true"/>
+    </configuration>
+    <payload-type-filter expectedType="java.util.ArrayList" name="Filter_Not_ArrayList" doc:name="Payload"/>
+
+<choice-exception-strategy  name="implementationChoice_Exception_Strategy">
+    <catch-exception-strategy doc:name="No flights DW exception strategy " when="#[exception.causeMatches('com.mulesoft.weave.*')  || exception.message=='payload is empty']">
+            <set-payload value="NO FLIGHTS to #[flowVars.code + '\n' + exception]" doc:name="Set Payload"/>
+            <set-property propertyName="http.status" value="400" doc:name="Property"/>
+            <logger level="INFO" doc:name="Logger"/>
+        </catch-exception-strategy>
+         <catch-exception-strategy  doc:name="Data unavailable &#8211; all other exceptions">
+            <set-payload value="DATA IS UNAVAILABLE. TRY LATER. #['\n' + exception]" doc:name="Set Payload"/>
+            <set-property propertyName="http.status" value="500" doc:name="Property"/>
+            <logger level="INFO" doc:name="Logger"/>
+        </catch-exception-strategy>
+     </choice-exception-strategy>
+
+
+
+
+
+</mule>
